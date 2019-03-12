@@ -5,6 +5,7 @@
 #include "Scheduler.h"
 #include "Led.h"
 #include "Context.h"
+#include "TimeTracking.h"
 
 Task Tasks[NUMTASKS];           /* Lower indices: lower priorities           */
 uint16_t NextInterruptTime;     /* Timestamp at which next interrupt should occur */
@@ -104,7 +105,9 @@ static void DetermineNextInterruptTime (CandidateValue)
 
 interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 {
-  ContextSwitch();
+	StartTracking(TT_TIMER_INTERRUPT);
+	
+	ContextSwitch();
 
   /* ----------------------- INSERT CODE HERE ----------------------- */
 
@@ -131,9 +134,13 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 
   TACCR0 = NextInterruptTime;
 
+  StopTracking(TT_TIMER_INTERRUPT);
+  
   CALL_SCHEDULER;
 
+  StartTracking(TT_TIMER_INTERRUPT);
   ResumeContext();
+  StopTracking(TT_TIMER_INTERRUPT);
 }
 
 #endif

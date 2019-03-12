@@ -33,10 +33,7 @@ void CountRealtimeDelay (uint16_t Ticks)
 }
 
 void BlinkYellow (uint16_t ExecutionTime)
-{
- 	P2DIR = 0xffff;
-	P2OUT = 0x1;
-  
+{  
   SetLeds (YELLOW, 1);
   CountRealtimeDelay(ExecutionTime);
   SetLeds (YELLOW, 0);
@@ -44,8 +41,6 @@ void BlinkYellow (uint16_t ExecutionTime)
 
 void BlinkGreen (uint16_t ExecutionTime)
 {
-	P2DIR = 0xffff;
-	P2OUT = 0x2;
   SetLeds (GREEN, 1);
   CountRealtimeDelay(ExecutionTime);
   SetLeds (GREEN, 0);
@@ -53,8 +48,6 @@ void BlinkGreen (uint16_t ExecutionTime)
 
 void BlinkRed (uint16_t ExecutionTime)
 {
-	P2DIR = 0xffff;
-	P2OUT = 0x3;
   SetLeds (RED, 1);
   CountRealtimeDelay(ExecutionTime);
   SetLeds (RED, 0);
