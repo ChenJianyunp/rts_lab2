@@ -109,6 +109,9 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 	
 	ContextSwitch();
 
+	P4DIR = 0xff;
+	P4OUT = 0x1;
+	
   /* ----------------------- INSERT CODE HERE ----------------------- */
 
   /* Insert timer interrupt logic, what tasks are pending? */ 
@@ -135,12 +138,15 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
   TACCR0 = NextInterruptTime;
 
   StopTracking(TT_TIMER_INTERRUPT);
+  PrintResults();
   
   CALL_SCHEDULER;
 
   StartTracking(TT_TIMER_INTERRUPT);
   ResumeContext();
   StopTracking(TT_TIMER_INTERRUPT);
+  
+  PrintResults();
 }
 
 #endif
