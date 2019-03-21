@@ -29,7 +29,7 @@ void Scheduler_NP_FP (Task Tasks[])
 	{
 		ExecuteTask(t);
 		P6OUT = 0xb;
-//		i=0;
+		i=-1; //in the next round, start from 0
 
 	}
 	P6OUT = 0xc;
