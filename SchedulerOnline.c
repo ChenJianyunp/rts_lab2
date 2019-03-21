@@ -105,13 +105,10 @@ static void DetermineNextInterruptTime (CandidateValue)
 
 interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 {
+	P4OUT = P4OUT + 1;
+	
 	StartTracking(TT_TIMER_INTERRUPT);
-	
 	ContextSwitch();
-
-	P4DIR = 0xff;
-	P4OUT = 0x1;
-	
   /* ----------------------- INSERT CODE HERE ----------------------- */
 
   /* Insert timer interrupt logic, what tasks are pending? */ 
@@ -121,21 +118,20 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 	uint16_t MinTime = 0xffff; //set to max number
 	for(i = 0;i < NUMTASKS; i++){
 		Taskp t = &Tasks[i];
-		if(NextInterruptTime == t->NextRelease){
+		if(TACCR0 == t->NextRelease){
 			t->Activated++;
 			t->NextRelease += t->Period; // set next release time
 		}		
 		if(MinTime > t->NextRelease)
 			MinTime = t->NextRelease;
 	}
-	
-	
-  NextInterruptTime = MinTime;
+    TACCR0 = MinTime;
 	
   /* ---------------------------------------------------------------- */
  
 
-  TACCR0 = NextInterruptTime;
+  
+
 
   StopTracking(TT_TIMER_INTERRUPT);
   PrintResults();
