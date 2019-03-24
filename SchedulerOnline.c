@@ -105,43 +105,49 @@ static void DetermineNextInterruptTime (CandidateValue)
 
 interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 {
-	P4OUT = P4OUT + 1;
-	
-	StartTracking(TT_TIMER_INTERRUPT);
-	ContextSwitch();
-  /* ----------------------- INSERT CODE HERE ----------------------- */
+  int i;
+  
+  StartTracking(TT_TIMER_INTERRUPT);
+  
+  ContextSwitch();
+  
+  SetLeds(WHITE, 1);
 
-  /* Insert timer interrupt logic, what tasks are pending? */ 
-  /* When should the next timer interrupt occur? Note: we only want interrupts at job releases */
-  /* Super simple, single task example */
-	int i;
-	uint16_t MinTime = 0xffff; //set to max number
-	for(i = 0;i < NUMTASKS; i++){
-		Taskp t = &Tasks[i];
-		if(TACCR0 == t->NextRelease){
-			t->Activated++;
-			t->NextRelease += t->Period; // set next release time
-		}		
-		if(MinTime > t->NextRelease)
-			MinTime = t->NextRelease;
-	}
-    TACCR0 = MinTime;
-	
-  /* ---------------------------------------------------------------- */
+  while(NextInterruptTime <= TAR)
+  {
+    NextInterruptTime = 0xFFFF; // reset next intterupt time so it can be determined again
+
+    for (i = 0; i < NUMTASKS; i++) // loop through all task to see which need to be scheduled
+    {
+      Taskp t = &Tasks[i];
+
+      if (t->Flags & TRIGGERED) // check if timer available
+      {
+        if (t->NextRelease <= TAR) // task needs to be scheduled
+        {
+          t->Activated++; // set task to pending
+          t->NextRelease += t->Period; // set next release time
+        }
+        DetermineNextInterruptTime(t->NextRelease); // this might be the next interrupt time
+      }
+    }    
+  } 
  
+  TACCR0 = NextInterruptTime; // set next interrupt time
 
-  
-
-
+  SetLeds(WHITE, 0);
   StopTracking(TT_TIMER_INTERRUPT);
-  PrintResults();
   
+  StartTracking(TT_SCHEDULER);
+  SetLeds(BROWN, 1);
+
   CALL_SCHEDULER;
 
-  StartTracking(TT_TIMER_INTERRUPT);
+  SetLeds(BROWN, 0);
+
   ResumeContext();
-  StopTracking(TT_TIMER_INTERRUPT);
-  
+
+  StopTracking(TT_SCHEDULER);
   PrintResults();
 }
 

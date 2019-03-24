@@ -2,68 +2,71 @@
 #include "Led.h"
 #include "TimeTracking.h"
 
-volatile uint16_t BusyPrio_EDF = 0xffff;      /* Current priority being served             */
-
 static void ExecuteTask (Taskp t)
 {
-  /* ----------------------- INSERT CODE HERE ----------------------- */
-  t->Invoked++;
-  if (t->Flags & TRIGGERED) {
-    SetLeds (BROWN, 1);
-	_EINT();
-	t->Taskf(t->ExecutionTime); // execute task
-	_DINT();
-	SetLeds (BROWN, 0);
-  } else {
-    t->Activated = t->Invoked;
-  }
-  /* ---------------------------------------------------------------- */
+  t->Invoked++; // increment invoked counter
+  t->Flags |= BUSY_EXEC; // set this task to busy executing
+  
+  StopTracking(TT_SCHEDULER);
+  SetLeds(BROWN, 0);
+
+  _EINT(); // because we are a preemptive scheduler, we should enable interrupts
+  t->Taskf(t->ExecutionTime); // execute task
+  _DINT(); // we are done with task execution, we don't want our scheduler to get interrupted
+
+  AddJobExecution();
+  StartTracking(TT_SCHEDULER);
+  SetLeds(BROWN, 1);
+  
+  t->Flags &= ~BUSY_EXEC; // this task is done busy executing
 }
 
 void Scheduler_P_EDF (Task Tasks[])
 { 
-  /* ----------------------- INSERT CODE HERE ----------------------- */
-  
-  uint8_t i;
-  uint16_t oldPrio;
-	uint16_t earlestDDL = BusyPrio_EDF; //store the earlest deadline
-  uint8_t selectedTask = 0;
-  
-  				P4DIR = 0xff;
-				P4OUT = 0xf;
-  
-  oldPrio = BusyPrio_EDF;
-  while(selectedTask != 0xff){
-	earlestDDL = oldPrio;
-	selectedTask = 0xff;
-	P4OUT = P4OUT + 1;
-	//find the task with earlest deadline
+  uint8_t i, j; // loop increment variable
+  int8_t NextTaskIndex; // index of task which is going to be scheduled next
+  uint8_t ScheduleAgain;
+ uint8_t selectedTask;
+ uint16_t earlestDDL = 0xffff; //store the earlest deadline
+ Taskp t;
+  do 
+  {
+    ScheduleAgain = 0; // reset ScheduleAgain flag
+    NextTaskIndex = -1; // reset NextTaskIndex
+	earlestDDL = 0xffff; //reset the earlest Deadline
+	
 	for(i = 0; i < NUMTASKS; i++)
 	{
-		Taskp t = &Tasks[i];
-	
-		if (t->Activated != t->Invoked)
+		t = &Tasks[i];
+		
+		if (t->Flags & TRIGGERED)
 		{
-			if(t->NextRelease < earlestDDL)
-			{	
-				earlestDDL = t->NextRelease;
-				selectedTask = i;
-				P3OUT = earlestDDL & 0xff;
-				P2OUT = i;
+			if (t->Activated != t->Invoked)
+			{			
+				if(t->NextRelease < earlestDDL)
+				{	
+					earlestDDL = t->NextRelease;
+					NextTaskIndex = i;
+				}
 			}
 		}
 	}
-	
-	if(selectedTask != 0xff){
-		BusyPrio_EDF =  Tasks[selectedTask].NextRelease;
-		ExecuteTask(&Tasks[selectedTask]);
-	}
 
+	if (Tasks[NextTaskIndex].Flags & BUSY_EXEC)
+	{
+    // this task was already executing, no need to invoke it again, exit scheduler
+		break;
+	} 
+
+	P4OUT = NextTaskIndex;
+	P4OUT = 0x0f;
 	
-  }
-  
-  BusyPrio_EDF = oldPrio;//restore the BusyPrio
-  
-  PrintResults();
-  /* ---------------------------------------------------------------- */
+    if (NextTaskIndex >= 0)
+    {
+      ExecuteTask(&Tasks[NextTaskIndex]);
+      ScheduleAgain = 1; // because we executed a task, we should call scheduler again
+    }
+	
+  } while (ScheduleAgain); // check whether scheduler should be executed again
 }
+

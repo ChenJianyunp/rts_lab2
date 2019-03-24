@@ -1,77 +1,76 @@
 #include "Scheduler.h"
 #include "Led.h"
-
-uint8_t edfRunningFlag = 0;
+#include "TimeTracking.h"
 
 static void ExecuteTask (Taskp t)
 {
-  /* ----------------------- INSERT CODE HERE ----------------------- */
-  t->Invoked++;
-  if (t->Flags & TRIGGERED) {
-    SetLeds (BROWN, 1);
-	t->Taskf(t->ExecutionTime); // execute task
-	SetLeds (BROWN, 0);
-  } else {
-    t->Activated = t->Invoked;
-  }
-  /* ---------------------------------------------------------------- */
+  t->Invoked++; // increment invoked counter
+  t->Flags |= BUSY_EXEC; // set this task to busy executing
+  
+  StopTracking(TT_SCHEDULER);
+  SetLeds(BROWN, 0);
+
+  t->Taskf(t->ExecutionTime); // execute task
+
+  AddJobExecution();
+  StartTracking(TT_SCHEDULER);
+  SetLeds(BROWN, 1);
+  
+  t->Flags &= ~BUSY_EXEC; // this task is done busy executing
 }
 
 void Scheduler_NP_EDF (Task Tasks[])
 { 
-  /* ----------------------- INSERT CODE HERE ----------------------- */
-  
-  uint8_t i;
-	uint16_t earlestDDL = 0xffff; //store the earlest deadline
-  uint8_t selectedTask = 0;
-  
-  if(edfRunningFlag == 0)
-  while(selectedTask != 0xff){
-	earlestDDL = 0xffff;
-	selectedTask = 0xff;
-	//find the task with earlest deadline
+  uint8_t i, j; // loop increment variable
+  int8_t NextTaskIndex; // index of task which is going to be scheduled next
+  uint8_t ScheduleAgain;
+ uint8_t selectedTask;
+ uint16_t earlestDDL = 0xffff; //store the earlest deadline
+ Taskp t;
+  do 
+  {
+    ScheduleAgain = 0; // reset ScheduleAgain flag
+    NextTaskIndex = -1; // reset NextTaskIndex
+	earlestDDL = 0xffff; //reset the earlest Deadline
+	
 	for(i = 0; i < NUMTASKS; i++)
 	{
-		Taskp t = &Tasks[i];
-	
-		if (t->Activated != t->Invoked)
+		t = &Tasks[i];
+		
+		if (t->Flags & TRIGGERED)
 		{
-			if(t->NextRelease < earlestDDL)
-			{	
-				earlestDDL = t->NextRelease;
-				selectedTask = i;
+			if (t->Activated != t->Invoked)
+			{			
+				if(t->NextRelease < earlestDDL)
+				{	
+					earlestDDL = t->NextRelease;
+					NextTaskIndex = i;
+				}
 			}
 		}
 	}
-	
-	if(selectedTask != 0xff){
-		i = -1;
-		edfRunningFlag = 1;
-		ExecuteTask(&Tasks[selectedTask]);
-		edfRunningFlag = 0;
-	}
-	
-	//	check whether there is pending interrupt
-	if (TACCTL0 & CCIFG){ // Check if interrupt is pending
-		int j;
-		uint16_t MinTime = 0xffff; //set to max number
-		for(j = 0;j < NUMTASKS; j++){
-			Taskp t = &Tasks[j];
-			if(TACCR0 == t->NextRelease){
-				t->Activated++;
-				t->NextRelease += t->Period; // set next release time
-			}		
-			if(MinTime > t->NextRelease)
-				MinTime = t->NextRelease;
-		}
-		P6OUT = 0x3a;
-		TACCR0 = MinTime;
-		
-		TACCTL0 &= ~CCIFG; // Clear interrupt pending flag
-	}
 
-  }
-  
-  PrintResults();
-  /* ---------------------------------------------------------------- */
+	if (Tasks[NextTaskIndex].Flags & BUSY_EXEC)
+	{
+    // this task was already executing, no need to invoke it again, exit scheduler
+		break;
+	} 
+
+	P4OUT = NextTaskIndex;
+	P4OUT = 0x0f;
+	
+    if (NextTaskIndex >= 0)
+    {
+      ExecuteTask(&Tasks[NextTaskIndex]);
+      ScheduleAgain = 1; // because we executed a task, we should call scheduler again
+    }
+		
+	//	check whether there is pending interrupt
+	if (TACCTL0 & CCIFG){ // Check if interrupt is pending		
+		TACCTL0 &= ~CCIFG; // Clear interrupt pending flag
+		return;
+	}
+	
+  } while (ScheduleAgain); // check whether scheduler should be executed again
 }
+
