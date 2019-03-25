@@ -107,7 +107,7 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 {
   int i;
   
-  StartTracking(TT_TIMER_INTERRUPT);
+  StartTracking(0);
   
   ContextSwitch();
   
@@ -136,9 +136,7 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
   TACCR0 = NextInterruptTime; // set next interrupt time
 
   SetLeds(WHITE, 0);
-  StopTracking(TT_TIMER_INTERRUPT);
   
-  StartTracking(TT_SCHEDULER);
   SetLeds(BROWN, 1);
 
   CALL_SCHEDULER;
@@ -147,8 +145,7 @@ interrupt (TIMERA0_VECTOR) TimerIntrpt (void)
 
   ResumeContext();
 
-  StopTracking(TT_SCHEDULER);
-  PrintResults();
+  StopTracking(0);
 }
 
 #endif

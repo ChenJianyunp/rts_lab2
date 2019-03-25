@@ -7,13 +7,13 @@ static void ExecuteTask (Taskp t)
   t->Invoked++; // increment invoked counter
   t->Flags |= BUSY_EXEC; // set this task to busy executing
   
-  StopTracking(TT_SCHEDULER);
+  StopTracking(0);
   SetLeds(BROWN, 0);
 
   t->Taskf(t->ExecutionTime); // execute task
-
+StartTracking(0);
   AddJobExecution();
-  StartTracking(TT_SCHEDULER);
+  
   SetLeds(BROWN, 1);
   
   t->Flags &= ~BUSY_EXEC; // this task is done busy executing

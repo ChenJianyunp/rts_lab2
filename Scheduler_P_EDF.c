@@ -7,15 +7,16 @@ static void ExecuteTask (Taskp t)
   t->Invoked++; // increment invoked counter
   t->Flags |= BUSY_EXEC; // set this task to busy executing
   
-  StopTracking(TT_SCHEDULER);
+  
   SetLeds(BROWN, 0);
-
+  
+  StopTracking(0);
   _EINT(); // because we are a preemptive scheduler, we should enable interrupts
   t->Taskf(t->ExecutionTime); // execute task
   _DINT(); // we are done with task execution, we don't want our scheduler to get interrupted
-
+	StartTracking(0);
   AddJobExecution();
-  StartTracking(TT_SCHEDULER);
+  
   SetLeds(BROWN, 1);
   
   t->Flags &= ~BUSY_EXEC; // this task is done busy executing
@@ -23,12 +24,12 @@ static void ExecuteTask (Taskp t)
 
 void Scheduler_P_EDF (Task Tasks[])
 { 
-  uint8_t i, j; // loop increment variable
-  int8_t NextTaskIndex; // index of task which is going to be scheduled next
-  uint8_t ScheduleAgain;
- uint8_t selectedTask;
- uint16_t earlestDDL = 0xffff; //store the earlest deadline
- Taskp t;
+	uint8_t i, j; // loop increment variable
+	int8_t NextTaskIndex; // index of task which is going to be scheduled next
+	uint8_t ScheduleAgain;
+	uint8_t selectedTask;
+	uint16_t earlestDDL = 0xffff; //store the earlest deadline
+	Taskp t;
   do 
   {
     ScheduleAgain = 0; // reset ScheduleAgain flag

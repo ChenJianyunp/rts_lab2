@@ -4,37 +4,31 @@
 #include "TimeTracking.h"
 
 /*
- * Timetracking interface, used to track the amount of time spent on certain intervals in code
+ * Timetracking interface, used to track the amount of time spent on certain intervals in code. 
+ * Integrated with TCL signal script 'signals.tcl'. These functions drive external pins port_out[0:7] on the msp430 signal group,
+ * 'signals.tcl' is used to sum the total time the pins are high for hi-res overhead measurement.
+ * Only use defined index PINx as input for tracking functions
  *
  * Boris Blokland, 8-2-2019
+ * Amended by: D. Zwart & D. Offerhaus, 8-3-2019
  */
 
-static uint16_t StartTimes[TT_MAX];
-static uint16_t Totals[TT_MAX];
+
 static uint8_t JobsExecuted;
 
+// Trigger ping high (detected as START by edge-detect TCL procedure loopSignal)
 void StartTracking(uint8_t index)
 {
-    StartTimes[index] = TAR;
+    P4OUT |= (0x1 << index);
 }
 
+// Trigger ping high (detected as STOP by edge-detect TCL procedure loopSignal)
 void StopTracking(uint8_t index)
 {
-    Totals[index] += TAR - StartTimes[index];
+    P4OUT &= ~(0x1 << index);
 }
 
 void AddJobExecution()
 {
     JobsExecuted++;
-}
-
-void PrintResults()
-{
-    P1OUT = Totals[TT_TIMER_INTERRUPT] & 0xFF;
-    P2OUT = Totals[TT_TIMER_INTERRUPT] >> 8;
-
-    P3OUT = Totals[TT_SCHEDULER] & 0xFF;
-    P4OUT = Totals[TT_SCHEDULER] >> 8;
-
-    P6OUT = JobsExecuted;
 }
