@@ -41,7 +41,7 @@ void Scheduler_P_EDF (Task Tasks[])
 		
 		if (t->Flags & TRIGGERED)
 		{
-			if (t->Activated != t->Invoked)
+			if ((t->Activated != t->Invoked) || (t->Flags & BUSY_EXEC))
 			{			
 				if(t->NextRelease < earlestDDL)
 				{	
